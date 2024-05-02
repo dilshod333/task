@@ -15,54 +15,62 @@ const (
 	password = "Dilshod@2005"
 	dbname   = "dilshod"
 )
+
 func connect() *sql.DB {
-	var err error
 	dbInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	num, err := sql.Open("postgres", dbInfo)
+	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
-		log.Fatal("Error connect to the database:", err)
+		log.Fatal("Error connecting to the database:", err)
 	}
-	err = num.Ping()
+	err = db.Ping()
 	if err != nil {
-		log.Fatal("failed to ping ", err)
+		log.Fatal("Failed to ping database:", err)
 	}
 
-	return num
+	return db
 }
 
 type product struct {
-	product_name  string
-	unit          string
-	category_name string
-	price         float32
-	description   string
+	ProductName  string
+	Unit         string
+	CategoryName string
+	Price        float32
+	Desc         string
 }
 
 func main() {
+	db := connect()
+	defer db.Close()
 
-	num := connect()
-	defer num.Close()
+	sql := `
+		SELECT p.product_name, p.unit, c.category_name, p.price, c.Desc
+		FROM products p
+		JOIN categories c ON p.category_id = c.category_id
+		WHERE c.category_name = 'Beverages';
+	`
 
-	sql := `SELECT p.product_name, p.unit, c.category_name, p.price, c.description
-	FROM pro p
-	JOIN categories c ON p.category_id = c.category_id
-	WHERE c.category_name = 'Beverages';`
-
-	rows, err := num.Query(sql)
+	rows, err := db.Query(sql)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rows.Close()
+
 	var products []product
 	for rows.Next() {
-		var n product
-		err = rows.Scan(&n.product_name, &n.unit, &n.category_name, &n.price, &n.description)
+		var p product
+		err := rows.Scan(&p.ProductName, &p.Unit, &p.CategoryName, &p.Price, &p.Desc)
 		if err != nil {
 			log.Fatal(err)
 		}
-		products = append(products, n)
+		products = append(products, p)
 	}
 
-	for _, product := range products {
-		fmt.Println(product)
+	for _, p := range products {
+		fmt.Printf("Product: %s\n", p.ProductName)
+		fmt.Printf("  Category: %s\n", p.CategoryName)
+		fmt.Printf("  Unit: %s\n", p.Unit)
+		fmt.Printf("  Price: %f\n", p.Price)
+		fmt.Printf("  Desc: %s\n", p.Desc)
+		fmt.Println()
 	}
 }
